@@ -1,0 +1,7 @@
+{
+  "name": "NoClosedClass",
+  "description": "An app that will text you when classes get cancelled",
+  "repository": "https://github.com/kennethgoodman/cunyfirst-API",
+  "keywords": ["node", "express", "static"],
+  "image": "heroku/nodejs"
+}
