@@ -1,8 +1,10 @@
 var worker = require('./worker');
 require('./ClassLooper')
 var pg = require('pg');
-var database_URL = "postgres://postgres@localhost/cuny_first_db";
+var database_URL = process.env.DATABASE_URL
 pg.defaults.poolIdleTimeout = 2000;
+
+
 
 allClasses(function(inst, sessions){
 	pg.connect(database_URL, function(err, client, done) {
@@ -11,25 +13,26 @@ allClasses(function(inst, sessions){
 			console.error('error running query', err);
 			client.end();
 		}
-    client.query("DELETE FROM classes")
+        client.query("DELETE FROM classes_1")
+        client.query("DELETE FROM session2")
+        client.query("DELETE FROM schools2")
+        console.log("institution length =")
+        console.log(inst.length)
 		for (var i=0; i<inst.length; i++){
 			var params =[inst[i].id, inst[i].name]
-      		client.query("INSERT INTO schools VALUES ($2, $1)", params, function(err, result) {
-        	})
+      		client.query("INSERT INTO schools2 VALUES ($2, $1)", params)
      	 }
+         console.log(sessions)
+         console.log(sessions.length)
      	 for (var m= 0; m<sessions.length; m++){
      	 	var current = sessions[m]
      	 	var params = [current.inst, current.session, current.name]
-     	 	//console.log(params)
-     	 	client.query("INSERT INTO session VALUES ($3, $2, $1)", params, function(err, result){
-     	 		if (err){
-     	 			console.log("something wrong")
-     	 			console.log(result)
-     	 			console.log(err)
-     	 		}
-     	 	})
+     	 	console.log(params)
+     	 	client.query("INSERT INTO session2 VALUES ($3, $2, $1)", params)
      	 }
-     	 done();  // client idles for 30 seconds before closing
+         setTimeout(function (){
+            done()
+         },1000*20)
          console.log("we're up to beer")
 	})
 

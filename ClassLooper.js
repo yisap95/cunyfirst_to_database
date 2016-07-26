@@ -2,7 +2,7 @@
 var worker = require('./worker');
 var pg = require('pg');
 require('./database2')
-var database_URL = "postgres://postgres@localhost/cuny_first_db";
+var database_URL = process.env.DATABASE_URL;
 pg.defaults.poolIdleTimeout = 2000;
 
 
@@ -32,15 +32,16 @@ allClasses = function (callback){
 		var institutionsArray= []
     var institutionsArray2= []
 		for (i in inst){
-      institutionsArray2.push({id: i, name: inst[i]})
-			institutionsArray.push(i)
+      institutionsArray2.push({name: i, id: inst[i]})
+			institutionsArray.push(inst[i])
 		}
+    //console.log(institutionsArray)
     
 
 		allSessions(institutionsArray, function (array){
-      callback (institutionsArray2, array)
-      console.log("all sessions returns")
-      console.log(array)
+      //callback (institutionsArray2, array)
+      //console.log("all sessions returns")
+      //console.log(array)
 
 			allSubjects (array, function(array1){
 				console.log("there are "+array1.length + " stuffs ")
@@ -56,14 +57,17 @@ allSessions = function (institutions, callback){
 	var sessionArray= []
 	var s= function sessionLoop (i) {      
    		setTimeout(function () {   
-      		getSession(institutions[--i], function (r, m){
-				for (j in m){
-					var item = {inst: institutions[i], session: m[j], name:j}
-					sessionArray.push(item)
-				}
-			})              
-   			if (i>-1) sessionLoop(i);      //it's i>-1 because this way it'll try to iterate an extra time before the callback, buying us an extra 3 seconds
-   			else callback(sessionArray)
+      	 getSession(institutions[--i], function (r, m){
+          console.log('got institutions for '+institutions[i])
+          console.log(m)
+    				for (j in m){
+    					var item = {inst: institutions[i], session: m[j], name:j}
+    					sessionArray.push(item)
+    				}
+            if (i==0) callback(sessionArray)
+         })              
+   			if (i>0) sessionLoop(i);      //it's i>-1 because this way it'll try to iterate an extra time before the callback, buying us an extra 3 seconds
+   			//else callback(sessionArray) //moved above
    		}, 1000*3)
 	}; 
 	s(institutions.length)
@@ -71,31 +75,44 @@ allSessions = function (institutions, callback){
 
 
 allSubjects = function (array, callback){
+  console.log("array is here")
+  console.log(array)
 	var classArray= []
 	var s= function sessionLoop (i) {      
    		setTimeout(function () {   
    			if (i>0){
    				getDept(array[--i].inst, array [i].session, function (m){
-					 for (j in m){
-					 	  var item = {inst: array[i].inst, session: array[i].session, subject: m[j], subject_name: j}
-					   	classArray.push(item)
-					 }
-				})   
-   			} 
-   			else{
-   				i--
-   			} 
-   			if (i>-1) sessionLoop(i);      //it's i>-1 because this way it'll try to iterate an extra time before the callback, buying us an extra 3 seconds
-   			else callback(classArray)
+            console.log(m)
+					   for (j in m){
+				 	      var item = {inst: array[i].inst, session: array[i].session, subject: m[j], subject_name: j}
+					      //console.log(item)
+                //classArray.push(item)
+					   }
+             if (i == 0 ){
+                console.log(classArray)
+                callback(classArray)
+             } 
+             else sessionLoop(i)
+				  })   
+   			}       
    		}, 1000*3)
 	}; 
 	s(array.length)
+
+
+
+
 }
 
 allSections = function(array, callback){
         console.log("-----")
         //console.log(array)
         pg.connect(database_URL, function(err, client, done) {
+          if(err) {
+            err["Error"] = true;
+            console.error('error running query', err);
+            client.end();
+          }
           var sectionsArray = []
           var s = function sectionLoop(i){
                 setTimeout(function(){
@@ -110,8 +127,8 @@ allSections = function(array, callback){
                                         	}
                                           var classInfo = tmp
                                           params = [classInfo.subject_name, classInfo.subject, classInfo['Days & Times'], classInfo.Room, classInfo.Class, classInfo.session, classInfo.inst, classInfo.Status==('Open'), classInfo['Meeting Dates'], classInfo.Instructor, classNbr]
-                                          //putInDatabase(client, params, i, array.length)
-                                          console.log(params)
+                                          putInDatabase(client, params, i, array.length)
+                                          //console.log(params)
                                      }
                                 }
                         })
@@ -119,10 +136,10 @@ allSections = function(array, callback){
                                 if (i>0) sectionLoop(i);      //it's i>-1 because this way it'll try to iterate an extra time before the callback, buying us an extra 3 seconds
                                 else {
                                         console.log("we're up to here")
-                                        done()
+                                        setTimeout( function () { done() }, 1000*1*10 )
                                         callback(sectionsArray)
                                 }
-                        },1000*5)
+                        },1000*6)
                 });
         }
         s(array.length)

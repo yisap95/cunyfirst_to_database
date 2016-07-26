@@ -22,275 +22,264 @@ Array.prototype.remove = function(from, to) {
   this.length = from < 0 ? this.length + from : from;
   return this.push.apply(this, rest);
 };
+
+var parseDropdownOptions = function(body, selectIndexString, callback){
+    var selectIndex = body.indexOf(selectIndexString)
+    var selectHtml = body.substring(selectIndex)
+    var selectHtml = selectHtml.substring(selectHtml.indexOf("<option"), selectHtml.indexOf("</select>"))
+    
+    optionsString = selectHtml.split('<option value=').join("")
+    optionsString = optionsString.replace("&nbsp;","")
+    optionsString = optionsString.replace("&nbsp;","")
+    optionsString = optionsString.split('></option>').join("")
+    optionsString = optionsString.split('</option>').join("")
+    optionsString = optionsString.split("selected").join("")
+    optionsString = optionsString.split('\"').join("")
+    optionsString = optionsString.split("=").join("")
+    optionsString = optionsString.split("\'").join("")
+    
+    var options = optionsString.split("\n")
+    valueTextStruct = {}
+    for(var i = 1; i < options.length - 1 ; i++){
+        temp = options[i].replace("&#039;", "\'").replace("&#039;", "\'").replace("&#039;", "\'").replace("&#039;", "\'")
+        temp = options[i].split(">")
+        temp[1] = temp[1].trim()
+        temp[0] = temp[0].trim()
+        valueTextStruct[temp[1]] = temp[0]
+    }
+    callback(valueTextStruct)
+}
+
 var classesArray = [];
+var urlProducer = function (icsid, ICStateNum, inst, session){
+    return 'https://hrsa.cunyfirst.cuny.edu/psc/cnyhcprd/GUEST/HRMS/c/COMMUNITY_ACCESS.CLASS_SEARCH.GBL?ICAJAX=1&ICNAVTYPEDROPDOWN=0&ICType=Panel&ICElementNum=0&ICStateNum='
+        +ICStateNum+
+        '&ICAction=CLASS_SRCH_WRK2_STRM$35$&ICXPos=0&ICYPos=0&ResponsetoDiffFrame=-1&TargetFrameName=None&FacetPath=None&ICFocus&ICSaveWarningFilter=0&ICChanged=-1&ICAutoSave=0&ICResubmit=0&ICSID='
+        +icsid+
+        '=&ICActionPrompt=false&ICBcDomData=undefined&ICFind&ICAddCount&ICAPPCLSDATA&CLASS_SRCH_WRK2_INSTITUTION$31$='
+        +inst+
+        '&CLASS_SRCH_WRK2_STRM$35$='
+        +session
+}
+var urlProducerClasses = function (icsid, ICStateNum, session, subject){
+    return 'https://hrsa.cunyfirst.cuny.edu/psc/cnyhcprd/GUEST/HRMS/c/COMMUNITY_ACCESS.CLASS_SEARCH.GBL?ICAJAX=1&ICNAVTYPEDROPDOWN=0&ICType=Panel&ICElementNum=0&ICStateNum='
+        +ICStateNum+
+        '&ICAction=CLASS_SRCH_WRK2_SSR_PB_CLASS_SRCH&ICXPos=0&ICYPos=0&ResponsetoDiffFrame=-1&TargetFrameName=None&FacetPath=None&ICFocus&ICSaveWarningFilter=0&ICChanged=-1&ICAutoSave=0&ICResubmit=0&ICSID='
+        +icsid+
+        '=&ICActionPrompt=false&ICBcDomData=undefined&ICFind&ICAddCount&ICAPPCLSDATA&CLASS_SRCH_WRK2_STRM$35$='
+        +session+
+        '&SSR_CLSRCH_WRK_SUBJECT_SRCH$0='
+        +subject+
+        '&SSR_CLSRCH_WRK_SSR_EXACT_MATCH1$1=G&SSR_CLSRCH_WRK_CATALOG_NBR$1=0&SSR_CLSRCH_WRK_SSR_OPEN_ONLY$chk$5=N'
+}
 
 
-getSections = function(inst, session, dept, callback){
-	request.post(options, function(err, res, body) {
+getSections = function (inst, session, dept, callback){
+    var dept1= dept //only here temporarily
+    //console.log('requesting '+inst+ ' '+session+ ' '+dept)
+    request.post(options, function(err, res, body) {
         if(err) {
-            console.error(err);
-            return;
+            if(global.LOG_CF_DOWN == false) {
+                logger.error("Error %j", err)
+                logger.log("CUNYFIRST may be down")
+                global.LOG_CF_DOWN = true
+            }
+            global.CUNYFIRST_DOWN = true
+            callback("CUNYFIRST may be down")
+            return
         }
         var parsed = cheerio.load(body);
-        if(body == '') {
-        	if(Math.random() > .99) console.log("CUNYFIRST may be down.")
-        	return false;
+        var key;
+        var ICStateNum = body.split("id=\'ICStateNum\' value=\'")[1].split("\'")[0];
+        try{
+            key = body.split("id=\'ICSID\' value=\'")[1].substring(0, 44);
         }
-        var key = parsed('form[name=\'win0\']>input[name=\'ICSID\']').val();
-        var submit_options = {
-            url: process.env.cunyfirst_search_url,
-            form: qs.stringify(formTemplate.getTemplate(key,inst,session,dept,'G','0')),
-            headers: options.headers,
+        catch(err){
+            if(global.LOG_CF_DOWN == false) {
+                logger.error("Error %j", err)
+                logger.log("CUNYFIRST may be down")
+                global.LOG_CF_DOWN = true
+            }
+            global.CUNYFIRST_DOWN = true
+            callback("CUNYFIRST may be down")
+            return
+        }
+        submit_options = {
+            url: urlProducer(key, ICStateNum, inst, session),
+            headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36'},
             jar: options.jar
-        };
-        request.post(submit_options, function(err,res,body){
-        	request.post(submit_options, function(err,res,body){
-        		var struct = {}
-        		var className = dept;
-        		try{
-        			var classOrder = [];
-	        		x(body, ['.PABACKGROUNDINVISIBLEWBO'])(function(err,td){ //table data
-				        var count = 0
-				        	for(var i in td){
-					            var data = td[i].split(/\n/);
-					            var newData = []
-					            for(var t in data){
-					                if(data[t] != ""){
-					                    newData.push(data[t])
-					                }
-					            }
-					            try{
-						            if(newData[0].indexOf(className) != -1){
-						                if(count >= 2){ //so we dont get the first two results which have duplicate hard to parse data
-						                    //var name = newData[0].substring(7,newData[0].indexOf("-") - 1)
-						                    var name = newData[0].substring(2 + className.length, newData[0].indexOf("-")-1);
-						                    var name = name.trim()
-						                    //console.log(newData)
-						                    var nbr = newData[8]
-						                    classOrder.push(name);
-						                    var class_nbr = newData[0].substring(2 + className.length, 2+className.length + newData[0].indexOf("-"))
-						                    newData.remove(0)
-						                    var d = {}
-						                    d[nbr] = {}
-						                    d[nbr]["Status"] = "0"
-						                    try{
-						                        for(var t = 0; t < newData.length; t++){  
-						                            if(newData[t] == 'Status'){
-						                                while(newData[t] != "Class"){
-						                                    t++
-						                                    if(newData[t].indexOf("Topic:" == 0)){
-						                                        d[nbr]["Topic"] = newData[t].substring(6)
-						                                    }
-						                                    if(t > newData.length-2){
-						                                        break;
-						                                    }
-						                                }
-						                                if(t > newData.length-2){
-						                                        break;
-						                                    }
-						                                nbr = newData[t+7]
-						                                d[nbr] = {}
-						                                classOrder.push(name);
-						                                d[nbr]["Status"] = "0"
-						                            }
-						                            d[nbr][newData[t]] = newData[t+7];
-						            
-						                        }
-						                    } catch(err){
-						                        //console.log(err)
-						                    }
-						                    struct[name] = d
-						                    //console.log(struct[name])
-						                }
-						                count += 1
-						            }
-						        } catch(err){
-						        	console.log(err);
-						        }
-				        	}
-				    	
-				    })
-					var temp = [];
-				    var p = cheerio.load(body)
-				    p('.SSSIMAGECENTER').each(function(err,open){
-				        temp.push(open.attribs.alt)
-				    })
-				    //console.log(classOrder)
-				    //console.log(struct);
-				    var counter = 0;
-				    var last = "n/a"
-				    for(var classNbr in classOrder){
-				    	if(classOrder[classNbr] == last) continue;
-				    	last = classOrder[classNbr]
-				    	for(var sectionNbr in struct[classOrder[classNbr]]){
-				    		struct[classOrder[classNbr]][sectionNbr]["Status"] = temp[counter++];
-				    	}
-				    }
-				} catch(err){
-				    console.log(err)
-				}
-				//console.log(struct)
-				//console.log(inst + ": " + session + " " + dept + " got class_nbr")
-				callback(struct);
-				var returnAlways = false;
-				for(var nbr in struct){
-					for(var section in struct[nbr]){
-						//callback(inst, session, dept, nbr, section)
-					}
-				}
-        	})
+        }
+        request.get(submit_options, function(err, res, body){
+            submit_options['url']= urlProducerClasses(key, ++ICStateNum, session, dept)
+            request.get(submit_options, function (err, res, body){ 
+                var struct = {}
+                body = body.substring(body.indexOf("win0divSSR_CLSRSLT_WRK_GROUPBOX2$"))
+                bodySplit = body.split("win0divSSR_CLSRSLT_WRK_GROUPBOX2$") //split by section
+                
+                for(var i = 1; i < bodySplit.length; i++){
+                    var temp = bodySplit[i]
+
+                    var classNumberAndInfo = temp.substring(temp.indexOf("/a>")+3, temp.indexOf("</DIV>")).split("&nbsp;").join("")
+                    var classNumber = classNumberAndInfo.split(" ")
+                    var dept = classNumber[0]
+
+                    if(classNumber[1] == '')
+                        classNumber = classNumber[2]
+                    else
+                        classNumber = classNumber[1]
+
+                    struct[classNumber] = {}
+
+                    var tableWithAllClasses = temp.substring(temp.indexOf("ACE_$ICField48"))
+                    rowsSplit = tableWithAllClasses.split("ACE_SSR_CLSRSLT_WRK_GROUPBOX3")
+                    for(var j = 1; j < rowsSplit.length; j++){
+                        var temp2 = rowsSplit[j]
+
+                        var temp2 = temp2.substr(temp2.indexOf("win0divMTG_CLASS_NBR"))
+                        var section = temp2.substr(temp2.indexOf("</a>") - 5, 5)
+                        try{
+                            struct[classNumber][section] = { "Section" : section }
+                        } catch(error){
+                            logger.error("error: %j", error)
+                            break
+                        }
+
+                        var temp2 = temp2.substr(temp2.indexOf("win0divMTG_CLASSNAME"))
+                        var className = temp2.substr(temp2.indexOf("</a>")-25,25)
+                        var className = className.substring(className.indexOf(">")+1, className.indexOf("<"))
+                        try{
+                            struct[classNumber][section]["className"] = className
+                        } catch(error){
+                            struct[classNumber][section]["className"] = 'NA'
+                        }
+
+                        var temp2 = temp2.substr(temp2.indexOf("win0divMTG_DAYTIME"))
+                        var dayTime = temp2.substr(temp2.indexOf("</span>")-25, 50)
+                        var dayTime = dayTime.substring(dayTime.indexOf(">")+1, dayTime.indexOf("<")) 
+                        try{
+                            struct[classNumber][section]["Days & Times"] = dayTime
+                        } catch(error){
+                            struct[classNumber][section]["Days & Times"] = 'NA'
+                        }
+
+                        var temp2 = temp2.substr(temp2.indexOf("win0divMTG_ROOM"))
+                        var room = temp2.substr(temp2.indexOf("</span>")-25, 50)
+                        var room = room.substring(room.indexOf(">")+1, room.indexOf("<")) 
+                        try{
+                            struct[classNumber][section]["Room"] = room
+                        } catch(error){
+                            struct[classNumber][section]["Room"] = 'NA'
+                        }
+
+                        var temp2 = temp2.substr(temp2.indexOf("win0divMTG_INSTR"))
+                        var teacher = temp2.substr(temp2.indexOf("</span>")-25, 50)
+                        var teacher = teacher.substring(teacher.indexOf(">")+1, teacher.indexOf("<")) 
+                        try{
+                            struct[classNumber][section]["Instructor"] = teacher
+                        } catch(error){
+                            struct[classNumber][section]["Instructor"] = 'NA'
+                        }
+
+                        var temp2 = temp2.substr(temp2.indexOf("win0divMTG_TOPIC"))
+                        var meetingDays = temp2.substr(temp2.indexOf("</span>")-25, 50)
+                        var meetingDays = meetingDays.substring(meetingDays.indexOf(">")+1, meetingDays.indexOf("<")) 
+                        try{
+                            struct[classNumber][section]["Dates"] = meetingDays
+                        } catch(error){
+                            struct[classNumber][section]["Dates"] = 'NA'
+                        }
+
+                        var temp2 = temp2.substr(temp2.indexOf("win0divDERIVED_CLSRCH_SSR_STATUS_LONG"))
+                        var status = temp2.substr(temp2.indexOf("alt=") + 5, 12)
+                        var status = status.substring(0, status.indexOf("\"")) 
+                        try{
+                            struct[classNumber][section]["Status"] = status
+                        } catch(error){
+                            struct[classNumber][section]["Status"] = 'NA'
+                        }
+
+                        var Topic = temp2.substr(temp2.indexOf("win0divDERIVED_CLSRCH_DESCRLONG"))
+                        var Topic = Topic.substring(Topic.indexOf("<span")+1,Topic.indexOf("</span>"))
+                        var Topic = Topic.substring(Topic.indexOf(">")+1)
+                        var Topic = Topic.replace("amp;","") 
+                        try{
+                            struct[classNumber][section]["Topic"] = Topic
+                        } catch(error){
+                            struct[classNumber][section]["Topic"] = 'NA'
+                        }
+
+                        struct[classNumber][section]["Class Title"] = classNumberAndInfo
+                        struct[classNumber][section]["Dept"] = dept
+                    }
+                }
+            
+                if(Object.keys(struct).length === 0 && struct.constructor === Object){
+                    console.log("no keys "+inst+ ' '+session+ ' '+dept1)
+                    //console.log()
+                    global.CUNYFIRST_DOWN = true
+                    callback("CUNYFIRST may be down")
+                }
+                else{
+                  callback(struct);  
+                }
+            })
         })
     })
-};
-
+}
 getDept = function(inst, session, callback){
-	request.post(options, function(err, res, body) {
+  request.post(options, function(err, res, body) {
         if(err) {
-            console.error(err);
+            logger.error(err);
             return;
         }
         var parsed = cheerio.load(body);
-        var key = parsed('form[name=\'win0\']>input[name=\'ICSID\']').val();
+        var key = body.split("id=\'ICSID\' value=\'")[1].substring(0, 44);
+        var ICStateNum = body.split("id=\'ICStateNum\' value=\'")[1].split("\'")[0];
+        submit_options = {
+            url: urlProducer(key, ICStateNum, inst, session),
+            headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36'},
+            jar: options.jar
+        }
+        request.get(submit_options, function (err, res, body){
+            var selectIndexString = "select name='SSR_CLSRCH_WRK_SUBJECT_SRCH$"
+            parseDropdownOptions(body, selectIndexString, callback)
+        })
+    })
+}
+getSession = function (inst, callback){
+    request.post(options, function(err, res, body) {
+        if(err) {
+            logger.error(err);
+            return;
+        }
+        var parsed = cheerio.load(body);
+        var key = body.split("id=\'ICSID\' value=\'")[1].substring(0, 44);
+        var ICStateNum = body.split("id=\'ICStateNum\' value=\'")[1].split("\'")[0];
         var submit_options = {
-            url: process.env.cunyfirst_search_url,
-            form: qs.stringify(formTemplate.getTemplate(key,inst,session,'','E','')),
-            headers: options.headers,
+            url: urlProducer(key, ICStateNum, inst, ''),
+            headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36'},
             jar: options.jar
         };
-        request.post(submit_options, function(err,res,body){
-        	request.post(submit_options, function(err,res,body){
-        		var p = cheerio.load(body);
-        		var dept = {}
-        		p('option').each(function(err,td){
-        			if(td.parent.attribs.name == "SSR_CLSRCH_WRK_SUBJECT_SRCH$0"){
-        				try{
-        					dept[td.children[0].data] = td.attribs.value
-	        				//sessions[td.children[0]['data']] = td.attribs.value;
-        				} catch(err){
-
-        				}
-        			}
-        		})
-        		callback(dept);
-        		return;
-        	})
+        request.get(submit_options, function(err,res,body){
+            var selectIndexString = "id='CLASS_SRCH_WRK2_STRM$35$"
+            parseDropdownOptions(body, selectIndexString, function(sessions){ callback(inst, sessions) })
         })
     })
 }
 
-getSession = function (inst, callback){
-	request.post(options, function(err, res, body) {
-        if(err) {
-            console.error(err);
-            return;
-        }
-        var parsed = cheerio.load(body);
-        var key = parsed('form[name=\'win0\']>input[name=\'ICSID\']').val();
-        var submit_options = {
-            url: process.env.cunyfirst_search_url,
-            form: qs.stringify(formTemplate.getTemplate(key,inst,'','','','')),
-            headers: options.headers,
-            jar: options.jar
-        };
-        request.post(submit_options, function(err,res,body){
-        	request.post(submit_options, function(err,res,body){
-        		var p = cheerio.load(body)
-        		var sessions = {};
-        		p('option').each(function(err,td){
-        			if(td.parent.attribs.name == "CLASS_SRCH_WRK2_STRM$45$"){
-        				try{
-        					sessions[td.children[0]['data']] = td.attribs.value;
-        				} catch(err){
-
-        				}
-        			}
-        		})
-        		//console.log(inst + " in session")
-	            callback(inst, sessions);
-	        })
-        });
-    })
-}
 getInst = function(callback){
     request.post(options, function(err, res, body) {
-    	try{
-    		if(body.length == 0) return;
-    	} catch(err){
-    		console.log(err)
-    		return false;
-    	}
+        try{
+            if(body.length == 0) return;
+        } catch(err){
+            logger.log(err)
+            return false;
+        }
         if(err) {
-            console.error(err);
+            logger.error(err);
             return;
         }
-        var parsed = cheerio.load(body);
-        x(body, '.PSDROPDOWNLIST@html')(function(err,data){
-            if(err){
-                console.log(err)
-                return
-            }
-            data = data.split('<option value=').join("")
-            data = data.split('></option>').join("")
-            data = data.split('</option>').join("")
-            data = data.split('\"').join("")
-            data = data.match(/[^\s]+/g);
-            var schools = []
-            var schoolNames = []
-            var schoolName = ""
-            for(var e = 1; e < data.length -1; e++){
-                if(data[e].indexOf(">") == 5){
-                    schools.push(data[e].substring(0,5))
-                    schoolNames.push(schoolName)
-                    schoolName = ""
-                    data[e] = data[e].substring(6);
-                }
-                schoolName += " " + data[e]
-            }
-            schoolNames.push(schoolName)
-            schoolNames.remove(0)
-            var schoolStruct = {}
-            for(var e in schools){
-                if(e == schools.length-1) break;
-                schoolStruct[schools[e]] = schoolNames[e].substring(1)
-            }
-            schoolStruct[schools[schools.length-1]] = schoolNames[schoolNames.length-1].substring(1)
-            callback(schoolStruct);
-        })
+        var selectIndexString = "select name='CLASS_SRCH_WRK2_INSTITUTION$31$"
+        parseDropdownOptions(body, selectIndexString, callback)
     })
 }
-deleteTable = function(){
-	sendQuery("TRUNCATE data_for_dropdowns",[], function(result){
-		console.log(result)
-	})
-}
-addDataToTable = function(callback){
-	getInst( function(inst){
-		getSession(inst, function(inst, session){
-			getDept(inst, session, function(inst,session,dept){
-				getSections(inst,session,dept,function(inst,session,dept, nbr, section){
-					var temp = {inst:inst.trim(), session:session.trim(), dept:dept.trim(), nbr:nbr.trim(), section:section.trim()};
-					classesArray.push(temp);
-					console.log(classesArray.length);
-					console.log(temp)
-					//var q = "INSERT INTO data_for_dropdowns (inst, session, dept, class_number, section) VALUES (\'" + inst + "\', \'" + session +"\', \'"+ dept + "\', \'" + nbr  + "\', \'" + section + "\');" 
-					//console.log(q)
-					try{
-							//sendQuery(String(q), function(result){
-							//console.log(result)
-					} catch(err){
-						console.log(err)
-						console.log("#######" + q)
-					}
-				});
-			})
-		});
-	})
-}
-/*
-isItOpen=function(inst, session, dept, course, section){
-    getSections(inst, session, dept, function(m){
-        console.log(m[course][section]["Status"])
-    })
-}
-isItOpen('QNS01', 1162, "PHYS", '234', '76027') */
-

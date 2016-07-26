@@ -61,6 +61,41 @@ function getTemplate(key,inst, term, dept,option, nbr) {
     return fields;
 }
 
+var getTemplateSession =function  (inst){
+    var fields = {
+        ICAJAX:1,
+        ICNAVTYPEDROPDOWN:0,
+        ICType:'Panel',
+        ICElementNum:0,
+        ICStateNum:9,
+        ICAction:'CLASS_SRCH_WRK2_INSTITUTION$31$',
+        ICXPos:0,
+        ICYPos:0,
+        ResponsetoDiffFrame:-1,
+        TargetFrameName:'None',
+        FacetPath:'None',
+        ICFocus:'',
+        ICSaveWarningFilter:0,
+        ICChanged:-1,
+        ICAutoSave:0,
+        ICResubmit:0,
+        ICSID:'Zh1zX3ctg8HSwSd0L2vvog+F87oIgFIgRmHw7fKshj4=',
+        ICActionPrompt:false,
+        ICBcDomData:undefined,
+        ICFind:'',
+        ICAddCount:'',
+        ICAPPCLSDATA:'',
+        CLASS_SRCH_WRK2_INSTITUTION$31$:inst
+    }
+    return fields
+}
+function getTemplateSubjects (){
+
+}
+function getTemplateClasses (){
+
+}
+
 module.exports = {
     getTemplate: getTemplate
 }
