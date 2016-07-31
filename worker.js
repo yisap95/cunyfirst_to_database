@@ -214,8 +214,8 @@ getSections = function (inst, session, dept, callback){
                 }
             
                 if(Object.keys(struct).length === 0 && struct.constructor === Object){
-                    console.log("no keys "+inst+ ' '+session+ ' '+dept1)
-                    //console.log()
+                    logger.log("no keys "+inst+ ' '+session+ ' '+dept1)
+                    //console.log("no keys "+inst+ ' '+session+ ' '+dept1)
                     global.CUNYFIRST_DOWN = true
                     callback("CUNYFIRST may be down")
                 }
