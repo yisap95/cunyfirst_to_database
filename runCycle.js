@@ -1,4 +1,5 @@
 require('./worker')
+var pg = require('pg');
 
 arrayify= function(hash, callback){
 	//puts values of a hash into an array
@@ -25,7 +26,6 @@ function array_flip( trans )
 loadInstitutions = function(callback){
 	getInst(function(result){
 		delete result['The Graduate Center'] //because there are no classes here
-		console.log(result)
 		arrayify(result, function(a){
 			callback(a, result)
 		})
@@ -58,6 +58,48 @@ loadClasses= function(inst, session, subject, callback){
 	})
 }
 
+putClassesInDatabase= function (inst, session, subject, classes){
+	logger.log('time for '+inst+session+subject)
+	if (Object.keys(classes).length == 0 ){
+		console.log('empty')
+		return
+	}
+	//console.log(classes)
+	paramS = []
+	for(classNbr in classes){
+	    for (c in classes[classNbr]){
+		    var data = classes[classNbr][c]
+		    //params = [subject, data.Dept, data['Days & Times'], data.Room, data.Section, session, inst, data.Status==('Open'), data['Dates'], data.Instructor, classNbr, data.Topic, data.className]
+		    
+		    var m =data.Status==('Open')
+
+
+		    param = "('"+subject +"', '"+ data.Dept +"', '"+ data['Days & Times']+"', '"+data.Room+"', '"+data.Section+"', '"+session+"', '"+inst+"', '"+m+"', '"+ data['Dates']+"', '"+data.Instructor+"', '"+classNbr+"', '"+data.Topic+"', '"+data.className+"')"
+		    paramS.push(param)
+		    
+		}
+	}
+	pg.connect(process.env.DATABASE_URL, function(err, client, done) {
+		if (err) {
+			console.log(err);
+			pg.end();
+			return;
+		}
+		//console.log('Connected to postgres! Getting schemas...');
+		client.query("INSERT INTO classes_1 VALUES " + paramS.join(", "), [], function(err, result) {
+		    if(err) {
+		      err["Error"] = true;
+		      console.error('error running query', err);
+		      console.log(paramS)
+		      done()
+		    }
+		    else{
+		        done();
+		    }
+		})
+    })
+}
+
 runTheLoop = function (){
 	/*if (cunyfirst is down){
 		console.log('bad cunyfirst')
@@ -75,7 +117,7 @@ runTheLoop = function (){
 						//for each subject in each session in each instition get classes
 						checkClasses= function (inst, session, subject){
 							loadClasses(inst, session, subject, function(classes){
-								//need to write function to put classes into database
+								putClassesInDatabase(inst, session, subjectsHash[subject], classes)
 								if (uptoSubject>-1) checkClasses(inst, session, subjects[uptoSubject--])
 								else if (uptoSession>-1) checkSubjects(inst, sessions[uptoSession--])
 								else if (uptoInstitution>-1) checkSessions(institutions[uptoInstitution--])
@@ -91,6 +133,10 @@ runTheLoop = function (){
 	})
 }
 runTheLoop()
+
+/*getSections('QNS01', '1169', 'math', function(result){
+    putClassesInDatabase('QNS01', '1169', 'MeTH', result)
+})*/
 
 
 

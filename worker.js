@@ -4,6 +4,16 @@ try{
 }catch(err){
     //do nothing if this fails, we are in dev
 }
+logger = require('tracer').console({
+                  format : [ "<{{title}}> {{file}}:{{line}}: {{message}}", 
+                        {
+                            error: "<{{title}}> {{file}}:{{line}}: {{message}} \nCall Stack: {{stack}}",
+                            debug: "{{timestamp}} <{{title}}> {{file}}:{{line}}: {{message}}",
+                            dateformat : " h:MM:ss TT"
+                        }],
+                  preprocess: function(data){ data.title = data.title.toUpperCase()}
+              })
+
 var qs = require('querystring');
 var request = require('request');
 var cheerio = require('cheerio');
@@ -137,6 +147,7 @@ getSections = function (inst, session, dept, callback){
 
                         var temp2 = temp2.substr(temp2.indexOf("win0divMTG_CLASS_NBR"))
                         var section = temp2.substr(temp2.indexOf("</a>") - 5, 5)
+                        if (section.charAt(0) == '>') section= section.substr(1, 4) //fixed 4 digit section # problem
                         try{
                             struct[classNumber][section] = { "Section" : section }
                         } catch(error){
@@ -214,10 +225,10 @@ getSections = function (inst, session, dept, callback){
                 }
             
                 if(Object.keys(struct).length === 0 && struct.constructor === Object){
-                    logger.log("no keys "+inst+ ' '+session+ ' '+dept1)
-                    //console.log("no keys "+inst+ ' '+session+ ' '+dept1)
-                    global.CUNYFIRST_DOWN = true
-                    callback("CUNYFIRST may be down")
+                    //logger.log("no keys "+inst+ ' '+session+ ' '+dept1)
+                    //logger.log(struct)
+                    //global.CUNYFIRST_DOWN = true
+                    callback(struct)
                 }
                 else{
                   callback(struct);  
@@ -283,3 +294,5 @@ getInst = function(callback){
         parseDropdownOptions(body, selectIndexString, callback)
     })
 }
+
+
