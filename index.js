@@ -13,17 +13,12 @@ var pg = require('pg'); // for postgres access
 
 //runnning serrverrrr
 var http = require("http");
-
-http.createServer(function (request, response) {
-
-   // Send the HTTP header 
-   // HTTP Status: 200 : OK
-   // Content Type: text/plain
-   response.writeHead(200, {'Content-Type': 'text/plain'});
-   
-   // Send the response body as "Hello World"
-   response.end('Hello World\n');
-}).listen();
+var express = require('express'); // for creating the application, classic lib for node
+var session = require('express-session');
+var app = express()
+var port = process.env.PORT || 5000;
+var server = http.createServer(app)
+server.listen(port)
 
 
 // TODO: load into database here
