@@ -279,8 +279,7 @@ getSession = function (inst, callback){
 }
 
 getInst = function(callback){
-    request.post(options, function(err, res, body) {
-        logger.log('yom')
+    request.get(options, function(err, res, body) {
         try{
             if(body.length == 0) return;
         } catch(err){
