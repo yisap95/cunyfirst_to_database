@@ -5,7 +5,8 @@ try{
 	//do nothing if this fails, we are in dev
 }
 /*********************** other js files in this directory ******************************/
-require('./worker');
+require('./runCycle.js');
+
 /*********************** npm modules in use ********************************************/
 
 var pg = require('pg'); // for postgres access
