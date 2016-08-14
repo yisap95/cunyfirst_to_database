@@ -280,6 +280,7 @@ getSession = function (inst, callback){
 
 getInst = function(callback){
     request.post(options, function(err, res, body) {
+        console.log('yo')
         try{
             if(body.length == 0) return;
         } catch(err){
