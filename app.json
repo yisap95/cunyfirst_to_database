@@ -1,7 +1,7 @@
 {
   "name": "cunyfirst_to_database",
-  "description": "An app that will text you when classes get cancelled",
-  "repository": "https://github.com/kennethgoodman/cunyfirst-API",
+  "description": "scrapes the entire cunyfirst to a database",
+  "repository": "https://github.com/yisap95/cunyfirst_to_database",
   "keywords": ["node", "express", "static"],
   "image": "heroku/nodejs"
 }
