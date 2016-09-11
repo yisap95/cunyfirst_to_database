@@ -100,17 +100,25 @@ putClassesInDatabase= function (inst, session, subject, classes){
     })
 }
 
+putSessionsInDatabase (inst, sessionsHash){
+
+}
+
+putInstitutionsInDatabase(institutionsHash){
+	
+}
+
 runTheLoop = function (){
 	/*if (cunyfirst is down){
 		console.log('bad cunyfirst')
 	}*/
 	loadInstitutions(function (institutions, institutionsHash){
 		uptoInstitution = institutions.length-1
-		//need to write function to put institutions into database
+		putInstitutionsInDatabase(institutionsHash)//function to put institutions into database
 		checkSessions = function (inst){
 			loadSessions (inst, function(sessions, sessionsHash){
 				uptoSession= sessions.length-1
-				//need to write function to put sessions into database
+				putSessionsInDatabase(inst, sessionsHash)//function to put sessions into database
 				checkSubjects= function(inst, session){
 					loadSubjects(inst, session, function(subjects, subjectsHash){
 						uptoSubject = subjects.length-1
