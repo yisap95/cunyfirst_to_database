@@ -26,6 +26,17 @@ function array_flip( trans )
 loadInstitutions = function(callback){
 	getInst(function(result){
 		delete result['The Graduate Center'] //because there are no classes here
+		delete result['York College']
+		delete result['School of Professional Studies']
+		delete result['Queensborough CC']
+		delete result['Queens College']
+		delete result['NYC College of Technology']
+		delete result['Medgar Evers College']
+		delete result['Lehman College']
+		delete result['LaGuardia Community College']
+		delete result['Kingsborough CC']
+		delete result['John Jay College']
+
 		arrayify(result, function(a){
 			callback(a, result)
 		})
@@ -49,21 +60,22 @@ loadSubjects= function(inst, session, callback){
 }
 
 loadClasses= function(inst, session, subject, callback){
+	//console.log("here are "+inst+session+subject)
 	getSections(inst, session, subject, function(result){
 		//console.log('\n\n\n got classes for '+inst+' '+session+' '+subject)
 		//console.log(result)
-		arrayify(result, function(a){
-			callback(a, result)
-		})
+		callback(result)
 	})
 }
 
 putClassesInDatabase= function (inst, session, subject, classes){
 	logger.log('time for '+inst+session+subject)
+	//console.log(classes)
 	if (Object.keys(classes).length == 0 ){
 		console.log('empty')
 		return
 	}
+	
 	//console.log(classes)
 	paramS = []
 	for(classNbr in classes){
@@ -81,12 +93,13 @@ putClassesInDatabase= function (inst, session, subject, classes){
 	}
 	pg.connect(process.env.DATABASE_URL, function(err, client, done) {
 		if (err) {
+			console.log(process.env.DATABASE_URL)
 			console.log(err);
 			pg.end();
 			return;
 		}
 		//console.log('Connected to postgres! Getting schemas...');
-		client.query("INSERT INTO classes_1 VALUES " + paramS.join(", "), [], function(err, result) {
+		client.query("INSERT INTO classes_2 VALUES " + paramS.join(", "), [], function(err, result) {
 		    if(err) {
 		      err["Error"] = true;
 		      console.error('error running query', err);
@@ -100,13 +113,37 @@ putClassesInDatabase= function (inst, session, subject, classes){
     })
 }
 
-putSessionsInDatabase (inst, sessionsHash){
-
+putSessionsInDatabase= function(inst, sessionsHash){
+	//console.log(inst, sessionsHash)
+	paramS = []
+	for (i in sessionsHash){
+		sessionsHash[i],
+		param = "('"+i +"', '"+ sessionsHash[i] +"', '"+ inst+"')"
+		paramS.push(param)
+	}
+		pg.connect(process.env.DATABASE_URL, function(err, client, done) {
+		if (err) {
+			console.log(process.env.DATABASE_URL)
+			console.log(err);
+			pg.end();
+			return;
+		}
+		//console.log('Connected to postgres! Getting schemas...');
+		client.query("INSERT INTO session2 VALUES " + paramS.join(", "), [], function(err, result) {
+		    if(err) {
+		      err["Error"] = true;
+		      console.error('error running query', err);
+		      console.log(paramS)
+		      done()
+		    }
+		    else{
+		        done();
+		    }
+		})
+    })
 }
 
-putInstitutionsInDatabase(institutionsHash){
-	
-}
+
 
 runTheLoop = function (){
 	/*if (cunyfirst is down){
@@ -114,11 +151,11 @@ runTheLoop = function (){
 	}*/
 	loadInstitutions(function (institutions, institutionsHash){
 		uptoInstitution = institutions.length-1
-		putInstitutionsInDatabase(institutionsHash)//function to put institutions into database
+		//putInstitutionsInDatabase(institutionsHash)//function to put institutions into database
 		checkSessions = function (inst){
 			loadSessions (inst, function(sessions, sessionsHash){
 				uptoSession= sessions.length-1
-				putSessionsInDatabase(inst, sessionsHash)//function to put sessions into database
+				putSessionsInDatabase(inst, sessionsHash)
 				checkSubjects= function(inst, session){
 					loadSubjects(inst, session, function(subjects, subjectsHash){
 						uptoSubject = subjects.length-1
@@ -142,9 +179,6 @@ runTheLoop = function (){
 }
 runTheLoop()
 
-/*getSections('QNS01', '1169', 'math', function(result){
-    putClassesInDatabase('QNS01', '1169', 'MeTH', result)
-})*/
 
 
 
